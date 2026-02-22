@@ -16,45 +16,25 @@
 //   console.error("geolocation not supported");
 // }
 
-document.querySelector("#locate").addEventListener("click", setStation);
+document
+  .querySelector("#locate")
+  .addEventListener("click", () => setStation("PMH"));
 
-function setStation() {
-  const stat_name = document.querySelector("#stat_name");
-  const stat_code = document.querySelector("#stat_code");
-
-  const from = document.querySelector("#from");
-  const to = document.querySelector("#to");
-
-  const op_name = document.querySelector("#op_name");
-
-  const cd_timer = document.querySelector("#cd_timer");
-
-  if (stat_name.textContent == "Portsmouth Harbour") {
-    stat_name.textContent = "Rhoose Cardiff International Airport";
-    stat_code.textContent = "RIA";
-
-    from.textContent = "RIA";
-    to.textContent = "CDF";
-
-    cd_timer.textContent = "00:03:24";
-
-    op_name.textContent = "Transport for Wales";
-  } else {
-    stat_name.textContent = "Portsmouth Harbour";
-    stat_code.textContent = "PMH";
-
-    from.textContent = "PMH";
-    to.textContent = "WAT";
-
-    op_name.textContent = "South Western Railway";
-
-    cd_timer.textContent = "01:23:45";
-  }
+function setStation(crs) {
+  document.querySelector("#stat_name").textContent = "Portsmouth Harbour";
+  document.querySelector("#stat_code").textContent = crs;
+  updateDisplay(crs, cd);
+  console.log("updated");
 }
 
 class Countdown {
   constructor(end_time_string, on_end) {
-    this.end_time = this.string_to_time(end_time_string);
+    if (end_time_string == "") {
+      this.end_time = "";
+    } else {
+      this.end_time = this.string_to_time(end_time_string);
+    }
+
     this.on_end = on_end;
 
     this.hours;
@@ -68,13 +48,17 @@ class Countdown {
   }
 
   new_time(time_string) {
-    this.end_time = this.string_to_time(time_string);
+    if (time_string === "") {
+      this.end_time = "";
+    } else {
+      this.end_time = this.string_to_time(time_string);
+    }
   }
 
   string_to_time(time_string) {
     const [hours, minutes] = time_string.split(":");
-    const date = new Date(); // New date object with current date & time
-    date.setHours(parseInt(hours), parseInt(minutes), 0, 0); // Replace hours & mins with parsed info
+    const date = new Date();
+    date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
     return date;
   }
 
@@ -98,29 +82,130 @@ class Countdown {
 
   start() {
     setInterval(() => {
-      const time_remains = this.time_remaining();
-      this.calc_times(time_remains);
-      if (this.late) {
-        this.timer_elem.classList.add("late");
-      } else {
-        this.timer_elem.classList.remove("late");
+      if (this.end_time !== "") {
+        const time_remains = this.time_remaining();
+        this.calc_times(time_remains);
+        if (this.late) {
+          this.timer_elem.classList.add("late");
+        } else {
+          this.timer_elem.classList.remove("late");
+        }
       }
-      //this.on_end();
       this.display_time();
     }, 1000);
   }
 
   display_time() {
-    this.timer_elem.textContent = `${String(this.hours).padStart(2, "0")}:${String(this.minutes).padStart(2, "0")}:${String(this.seconds).padStart(2, "0")}`;
-
-    if (this.late) {
-      this.timer_label.textContent = "Late By";
+    if (this.end_time === "") {
+      this.timer_elem.textContent = "No Services";
+      this.timer_label.textContent = "";
     } else {
-      this.timer_label.textContent = "Departing In";
+      this.timer_elem.textContent = `${String(this.hours).padStart(2, "0")}:${String(this.minutes).padStart(2, "0")}:${String(this.seconds).padStart(2, "0")}`;
+
+      if (this.late) {
+        this.timer_label.textContent = "Late By";
+      } else {
+        this.timer_label.textContent = "Departing In";
+      }
     }
   }
 }
 
-const cd = new Countdown("20:45", "", "");
-console.log(cd.hours, cd.minutes, cd.seconds);
+function getJourneyLength(start, end) {
+  const toMinutes = (timeStr) => {
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const startMins = toMinutes(start);
+  const endMins = toMinutes(end);
+
+  let diff = endMins - startMins;
+
+  if (diff < 0) {
+    diff += 24 * 60;
+  }
+
+  const durationHours = Math.floor(diff / 60);
+  const durationMins = diff % 60;
+
+  return {
+    totalMinutes: diff,
+    formatted: `${durationHours}h ${durationMins}m`,
+  };
+}
+
+function setNoServices(cd) {
+  document.querySelector("#from").textContent = "-";
+  document.querySelector("#to").textContent = "-";
+  document.querySelector("#depart_time").textContent = "-";
+  document.querySelector("#platform_num").textContent = "-";
+  document.querySelector("#stop_num").textContent = "-";
+  document.querySelector("#cars_num").textContent = "-";
+  document.querySelector("#jt_time").textContent = "-";
+  document.querySelector("#op_name").textContent = "-";
+  cd.new_time("");
+}
+
+async function updateDisplay(crs, cd) {
+  // Fetch info about departures
+  const response1 = await fetch(`/api/departures/${crs}`);
+  const trainData = await response1.json();
+
+  // Handle no services
+  if (!trainData["trainServices"] || trainData["trainServices"].length === 0) {
+    setNoServices(cd);
+    return;
+  }
+
+  // Start parsing the fetched data
+  const serviceInfoBasic = trainData["trainServices"][0];
+  const serviceId = serviceInfoBasic["serviceIdGuid"];
+  const departure_time = serviceInfoBasic["std"];
+
+  // Fetch more detailed info about specific service
+  const response2 = await fetch(`/api/services/${serviceId}`);
+  const serviceData = await response2.json();
+
+  // Guard against missing calling points
+  if (!serviceData["subsequentCallingPoints"]) {
+    setNoServices(cd);
+    return;
+  }
+
+  // Get relevant data about service
+  const stop_num =
+    serviceData["subsequentCallingPoints"][0]["callingPoint"].length;
+  const journey_length = getJourneyLength(
+    departure_time,
+    serviceData["subsequentCallingPoints"][0]["callingPoint"].at(-1)["st"],
+  );
+
+  // Get DOM elements
+  const from = document.querySelector("#from");
+  const to = document.querySelector("#to");
+  const depart_time = document.querySelector("#depart_time");
+  const platform = document.querySelector("#platform_num");
+  const stops = document.querySelector("#stop_num");
+  const carriages = document.querySelector("#cars_num");
+  const journey_time = document.querySelector("#jt_time");
+  const operator = document.querySelector("#op_name");
+
+  from.textContent = serviceInfoBasic["origin"][0]["crs"];
+  to.textContent = serviceInfoBasic["destination"][0]["crs"];
+  depart_time.textContent = departure_time;
+  platform.textContent = serviceInfoBasic["platform"] ?? "-";
+  stops.textContent = stop_num;
+  carriages.textContent = serviceInfoBasic["length"]
+    ? serviceInfoBasic["length"]
+    : "-";
+  journey_time.textContent = journey_length.formatted;
+  operator.textContent = serviceInfoBasic["operator"];
+
+  cd.new_time(departure_time ? departure_time : "");
+}
+
+const cd = new Countdown("", "", "");
 cd.start();
+
+updateDisplay("PMH", cd);
