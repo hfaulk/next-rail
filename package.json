@@ -2,7 +2,7 @@
   "name": "formproj",
   "version": "1.0.0",
   "description": "",
-  "main": "script.js",
+  "main": "server.js",
   "scripts": {
     "start": "npx nodemon server.js"
   },
