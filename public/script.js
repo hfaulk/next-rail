@@ -156,7 +156,6 @@ async function updateDisplay(crs, cd) {
   // Start parsing the fetched data
   const serviceInfoBasic = trainData["trainServices"][0];
   const serviceId = serviceInfoBasic["serviceIdGuid"];
-  const departure_time = serviceInfoBasic["std"];
 
   // Fetch more detailed info about specific service
   const response2 = await fetch(`/api/services/${serviceId}`);
@@ -168,14 +167,6 @@ async function updateDisplay(crs, cd) {
     return;
   }
 
-  // Get relevant data about service
-  const stop_num =
-    serviceData["subsequentCallingPoints"][0]["callingPoint"].length;
-  const journey_length = getJourneyLength(
-    departure_time,
-    serviceData["subsequentCallingPoints"][0]["callingPoint"].at(-1)["st"],
-  );
-
   // Get DOM elements
   const from = document.querySelector("#from");
   const to = document.querySelector("#to");
@@ -185,6 +176,24 @@ async function updateDisplay(crs, cd) {
   const carriages = document.querySelector("#cars_num");
   const journey_time = document.querySelector("#jt_time");
   const operator = document.querySelector("#op_name");
+
+  let departure_time = serviceInfoBasic["std"]; // default
+
+  if (serviceInfoBasic["etd"] === "On Time") {
+    depart_time.classList.remove("late");
+  } else if (serviceInfoBasic["etd"].length == 5) {
+    departure_time = serviceInfoBasic["etd"];
+    depart_time.classList.add("late");
+  }
+
+  // Get relevant data about service
+  const stop_num =
+    serviceData["subsequentCallingPoints"][0]["callingPoint"].length;
+  const lastStop =
+    serviceData["subsequentCallingPoints"][0]["callingPoint"].at(-1);
+  const arrivalTime =
+    lastStop["et"]?.length === 5 ? lastStop["et"] : lastStop["st"];
+  const journey_length = getJourneyLength(departure_time, arrivalTime);
 
   from.textContent = serviceInfoBasic["origin"][0]["crs"];
   to.textContent = serviceInfoBasic["destination"][0]["crs"];
@@ -249,24 +258,6 @@ async function findStation(usr_lat, usr_long) {
   }
 
   return closest;
-}
-
-function updateLocation(position) {
-  const { latitude, longitude } = position.coords;
-
-  const long = document.querySelector("#long");
-  const lat = document.querySelector("#lat");
-
-  long.textContent = `Longitude: ${longitude}`;
-  lat.textContent = `Latitude: ${latitude}`;
-}
-
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(updateLocation, (err) =>
-    console.error("location error:", err),
-  );
-} else {
-  console.error("geolocation not supported");
 }
 
 // Start app
