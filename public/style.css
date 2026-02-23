@@ -5,28 +5,30 @@ body {
     background-color: #f4f4f4;
 }
 
+#app {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background-color: #f4f4f4;
+}
+
 header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     background-color: midnightblue;
     margin: 0;
-    padding: 50px 75px 50px 75px;
+    padding: 20px 50px;
     color: white;
-    box-shadow: 0 25px 40px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 header h1 {
-    font-size: 4em;
+    font-size: 1.8em;
     padding: 0;
     margin: 0;
     font-family: sans-serif;
-}
-
-header div {
-    padding: 10px;
-    display: flex;
-    justify-content: center;
 }
 
 .info_panel {
@@ -35,11 +37,11 @@ header div {
     align-items: center;
     flex-direction: column;
     width: 90%;
-    margin: 55px auto;
+    margin: 20px auto;
     border-radius: 8px;
     background-color: white;
     color: black;
-    padding: 50px 0 50px 0;
+    padding: 16px 0;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -48,20 +50,22 @@ header div {
     justify-content: space-between;
     align-items: center;
     flex-direction: row;
-    width: 75%;
+    width: 80%;
 }
 
 .info_list p {
-    font-size: 2.5em;
-    margin: 15px 0 15px 0;
+    font-size: 1.1em;
+    margin: 6px 0;
 }
 
 #station {
-    padding: 15px 0 15px 0;
-    margin: 0px 0 0 0;
+    padding: 10px 0;
+    margin: 0;
     font-weight: bold;
+    font-size: 1em;
     width: 100%;
     border-radius: 0;
+    box-sizing: border-box;
 }
 
 #stat_name {
@@ -78,19 +82,13 @@ header div {
     max-width: 70%;
 }
 
-#location {
-    width: 275px;
-    font-size: 2em;
-    height: 60px;
-}
-
 #locate {
     border: none;
     background: rgba(255, 255, 255, 0.18);
     color: white;
-    width: 72px;
-    height: 72px;
-    border-radius: 18px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -100,10 +98,11 @@ header div {
         box-shadow 60ms ease,
         background 60ms ease;
     -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
 }
 
 #locate:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.24);
 }
 
 #locate:active {
@@ -113,11 +112,11 @@ header div {
 }
 
 #countdown {
-    padding: 60px 0 50px 0;
+    padding: 20px 0 12px 0;
 }
 
 #cd_label {
-    font-size: 3em;
+    font-size: 1.5em;
     padding: 0;
     margin: 0;
     color: grey;
@@ -128,7 +127,7 @@ header div {
 }
 
 #cd_timer {
-    font-size: 8em;
+    font-size: 5em;
     padding: 0;
     margin: 0;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -145,54 +144,57 @@ header div {
 #arrow {
     font-weight: bold;
     color: midnightblue;
-    font-size: 4em;
-    margin-bottom: 40px;
+    font-size: 1.8em;
+    margin-bottom: 10px;
 }
 
 #tofrom,
 #journey {
-    border-bottom: 1px solid grey;
+    border-bottom: 1px solid #ddd;
 }
 
 #journey {
-    padding-bottom: 30px;
+    padding-bottom: 10px;
 }
 
 #depart_div,
 #operator {
-    padding-top: 30px;
+    padding-top: 10px;
 }
 
 #next_train_label {
     color: midnightblue;
     font-weight: bold;
-    font-size: 1.3em;
-    padding-bottom: 30px;
-    border-bottom: 1px solid grey;
+    font-size: 1.6em;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
     justify-content: center;
 }
 
 #next_1 {
-    margin-top: 30px;
+    margin-top: 10px;
 }
 
 #station_search {
+    display: flex;
+    flex-direction: row;
     position: relative;
+    align-items: center;
+    gap: 10px;
 }
 
 #search_input {
     background: rgba(255, 255, 255, 0.18);
     border: none;
-    border-radius: 18px;
+    border-radius: 10px;
     color: white;
-    font-size: 1.1em;
-    height: 72px;
-    padding: 0 24px;
-    width: 320px;
+    font-size: 1em;
+    height: 40px;
+    padding: 0 14px;
+    width: 180px;
     outline: none;
     transition: background 60ms ease;
     -webkit-tap-highlight-color: transparent;
-    margin-right: 0;
 }
 
 #search_input::placeholder {
@@ -208,14 +210,15 @@ header div {
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
     list-style: none;
-    margin: 8px 0 0 0;
-    max-height: 320px;
+    margin: 0;
+    max-height: 280px;
     overflow-y: auto;
     padding: 6px 0;
     position: absolute;
     right: 0;
     width: 100%;
     z-index: 100;
+    top: 100%;
 }
 
 #search_results li {
@@ -224,7 +227,7 @@ header div {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px;
+    padding: 10px 16px;
     font-size: 1em;
     gap: 12px;
 }
@@ -253,8 +256,8 @@ header div {
     color: darkred;
     font-style: italic;
     margin: 0;
-    padding-bottom: 20px;
-    width: 75%;
+    padding-bottom: 12px;
+    width: 80%;
     text-align: right;
 }
 
@@ -262,4 +265,42 @@ header div {
     color: darkred;
     font-size: 0.55em;
     letter-spacing: 0.02em;
+}
+
+@media (max-width: 480px) {
+    .info_panel {
+        padding: 21px 0;
+        margin: 17px auto;
+    }
+    #countdown {
+        padding: 25px 0 20px 0;
+    }
+    #cd_timer {
+        font-size: 4em;
+    }
+    #cd_label {
+        font-size: 1.3em;
+    }
+    #next_train_label {
+        font-size: 1.5em;
+        font-weight: bold;
+    }
+    .info_list {
+        font-size: 1.1em;
+    }
+    #station {
+        padding: 6px 0;
+    }
+    #search_input {
+        width: 130px;
+        height: 34px;
+        font-size: 0.9em;
+    }
+    #locate {
+        width: 34px;
+        height: 34px;
+    }
+    header {
+        padding: 16px 30px;
+    }
 }

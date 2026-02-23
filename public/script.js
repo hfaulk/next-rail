@@ -1,7 +1,7 @@
 // Constants
 const EARTH_RADIUS_KM = 6_371;
 const COUNTDOWN_INTERVAL_MS = 1_000;
-const DISPLAY_REFRESH_MS = 30_000; // Re-fetch departure data every 30 seconds
+const DISPLAY_REFRESH_MS = 10_000; // Re-fetch departure data every 30 seconds
 const GEOLOCATION_REFRESH_MS = 3_600_000; // Re-check location every 60 minutes
 const CANCELLATION_LINGER_MS = 6_000; // How long to show "Cancelled" before moving on
 
