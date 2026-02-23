@@ -1,6 +1,6 @@
 import express from "express";
 import "dotenv/config";
-import stations from "./uk-train-stations.json" with { type: "json" };
+import stations from "./data/uk-train-stations.json" with { type: "json" };
 
 const app = express();
 const TOKEN = process.env.HUXLEY_TOKEN;

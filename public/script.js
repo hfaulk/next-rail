@@ -1,32 +1,26 @@
-// function updateLocation(position) {
-//   const { latitude, longitude } = position.coords;
+document.querySelector("#locate").addEventListener("click", () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const closest = await findStation(latitude, longitude);
+        setStation(closest.crs, closest.name);
+      },
+      (err) => console.error("location error:", err),
+    );
+  } else {
+    console.error("geolocation not supported");
+  }
+});
 
-//   const long = document.querySelector("#long");
-//   const lat = document.querySelector("#lat");
-
-//   long.textContent = `Longitude: ${longitude}`;
-//   lat.textContent = `Latitude: ${latitude}`;
-// }
-
-// if (navigator.geolocation) {
-//   navigator.geolocation.getCurrentPosition(updateLocation, (err) =>
-//     console.error("location error:", err),
-//   );
-// } else {
-//   console.error("geolocation not supported");
-// }
-
-document
-  .querySelector("#locate")
-  .addEventListener("click", () => setStation("PMH"));
-
-function setStation(crs) {
-  document.querySelector("#stat_name").textContent = "Portsmouth Harbour";
+function setStation(crs, name) {
+  document.querySelector("#stat_name").textContent = name;
   document.querySelector("#stat_code").textContent = crs;
   updateDisplay(crs, cd);
   console.log("updated");
 }
 
+// Countdown timer
 class Countdown {
   constructor(end_time_string, on_end) {
     if (end_time_string == "") {
@@ -111,6 +105,7 @@ class Countdown {
   }
 }
 
+// Updating DOM with service/departure info
 function getJourneyLength(start, end) {
   const toMinutes = (timeStr) => {
     const [hours, minutes] = timeStr.split(":").map(Number);
@@ -205,6 +200,7 @@ async function updateDisplay(crs, cd) {
   cd.new_time(departure_time ? departure_time : "");
 }
 
+// Finding station
 function radian(deg) {
   return (Math.PI / 180) * deg;
 }
@@ -226,8 +222,53 @@ function haversine(lat1, long1, lat2, long2) {
   return c * RAD_EARTH;
 }
 
+async function findStation(usr_lat, usr_long) {
+  let distances = [];
+
+  const response = await fetch(`/api/stations`);
+  const stations = await response.json();
+
+  for (const station of stations) {
+    distances.push({
+      crs: station["3alpha"],
+      name: station["station_name"],
+      hav: haversine(
+        usr_lat,
+        usr_long,
+        station["latitude"],
+        station["longitude"],
+      ),
+    });
+  }
+
+  let closest = distances[0];
+  for (const station of distances) {
+    if (station["hav"] <= closest["hav"]) {
+      closest = station;
+    }
+  }
+
+  return closest;
+}
+
+function updateLocation(position) {
+  const { latitude, longitude } = position.coords;
+
+  const long = document.querySelector("#long");
+  const lat = document.querySelector("#lat");
+
+  long.textContent = `Longitude: ${longitude}`;
+  lat.textContent = `Latitude: ${latitude}`;
+}
+
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(updateLocation, (err) =>
+    console.error("location error:", err),
+  );
+} else {
+  console.error("geolocation not supported");
+}
+
 // Start app
 const cd = new Countdown("", "", "");
 cd.start();
-
-updateDisplay("PMH", cd);
