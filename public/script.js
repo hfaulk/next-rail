@@ -205,6 +205,28 @@ async function updateDisplay(crs, cd) {
   cd.new_time(departure_time ? departure_time : "");
 }
 
+function radian(deg) {
+  return (Math.PI / 180) * deg;
+}
+
+function haversine(lat1, long1, lat2, long2) {
+  const delta_lat = radian(lat2) - radian(lat1);
+  const delta_long = radian(long2) - radian(long1);
+
+  const RAD_EARTH = 6371;
+
+  const a =
+    Math.sin(delta_lat / 2) ** 2 +
+    Math.cos(radian(lat1)) *
+      Math.cos(radian(lat2)) *
+      Math.sin(delta_long / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return c * RAD_EARTH;
+}
+
+// Start app
 const cd = new Countdown("", "", "");
 cd.start();
 

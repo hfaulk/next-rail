@@ -34,3 +34,7 @@ app.get("/api/services/:serviceId", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch service" });
   }
 });
+
+app.get("/api/stations", async (req, res) => {
+  
+});
