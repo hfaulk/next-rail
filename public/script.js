@@ -3,27 +3,20 @@ const EARTH_RADIUS_KM = 6_371;
 const COUNTDOWN_INTERVAL_MS = 1_000;
 const DISPLAY_REFRESH_MS = 30_000; // Re-fetch departure data every 30 seconds
 const GEOLOCATION_REFRESH_MS = 3_600_000; // Re-check location every 60 minutes
+const CANCELLATION_LINGER_MS = 6_000; // How long to show "Cancelled" before moving on
 
 // Station
-// Holds the CRS of the currently displayed station so the display
-// refresh timer always polls the right place.
 let currentCrs = null;
-
-// Holds the display refresh timer so it can be cancelled when the
-// station changes (e.g. user moves to a different station mid-hour).
 let displayRefreshTimer = null;
+let currentServiceId = null; // serviceIdGuid of the service currently on the main display
+let cancellationLingerTimer = null; // prevents a new refresh overriding the cancelled notice too soon
 
-/**
- * Updates the station name/code in the header, triggers an immediate
- * display refresh, and (re)starts the 30-second display polling loop.
- */
 function setStation(crs, name) {
   document.querySelector("#stat_name").textContent = name;
   document.querySelector("#stat_code").textContent = crs;
 
   currentCrs = crs;
 
-  // Immediate refresh, then repeat on a fixed interval
   updateDisplay(crs, countdown);
   clearInterval(displayRefreshTimer);
   displayRefreshTimer = setInterval(
@@ -33,13 +26,9 @@ function setStation(crs, name) {
 }
 
 // Geolocation
-/**
- * Requests the device's current position and updates the nearest station.
- * Called automatically on load, every hour, and when the locate button is pressed.
- */
 function refreshLocation() {
   if (!navigator.geolocation) {
-    console.error("Geolocation is not supported by this browser.");
+    showStationSearch();
     return;
   }
 
@@ -48,19 +37,143 @@ function refreshLocation() {
       const closest = await findNearestStation(latitude, longitude);
       setStation(closest.crs, closest.name);
     },
-    (err) => console.error("Geolocation error:", err),
+    (err) => {
+      console.warn("Geolocation denied or unavailable:", err.message);
+      showStationSearch();
+    },
   );
 }
 
-// Manual override — button forces an immediate location + display refresh
 document.querySelector("#locate").addEventListener("click", refreshLocation);
+
+// Station search (fallback when geolocation is denied)
+let allStations = null; // cached after first load
+
+async function loadStations() {
+  if (allStations) return allStations;
+  const res = await fetch("/api/stations");
+  allStations = await res.json();
+  return allStations;
+}
+
+function showStationSearch() {
+  document.querySelector("#locate").hidden = true;
+  document.querySelector("#station_search").hidden = false;
+  document.querySelector("#search_input").focus();
+}
+
+// Preload stations list in the background so search feels instant
+loadStations();
+
+const searchInput = document.querySelector("#search_input");
+const searchResults = document.querySelector("#search_results");
+let highlightedIndex = -1;
+
+searchInput.addEventListener("input", async () => {
+  const query = searchInput.value.trim().toLowerCase();
+  highlightedIndex = -1;
+
+  if (query.length < 2) {
+    searchResults.hidden = true;
+    searchResults.innerHTML = "";
+    return;
+  }
+
+  const stations = await loadStations();
+
+  // Match on name or CRS code, name matches ranked first
+  const matches = stations
+    .filter(
+      (s) =>
+        s.station_name.toLowerCase().includes(query) ||
+        s["3alpha"].toLowerCase().includes(query),
+    )
+    .sort((a, b) => {
+      const aName = a.station_name.toLowerCase().startsWith(query) ? 0 : 1;
+      const bName = b.station_name.toLowerCase().startsWith(query) ? 0 : 1;
+      return aName - bName;
+    })
+    .slice(0, 8);
+
+  if (!matches.length) {
+    searchResults.hidden = true;
+    searchResults.innerHTML = "";
+    return;
+  }
+
+  searchResults.innerHTML = matches
+    .map(
+      (s, i) => `
+      <li data-crs="${s["3alpha"]}" data-name="${s.station_name}">
+        <span>${s.station_name}</span>
+        <span class="result-crs">${s["3alpha"]}</span>
+      </li>
+    `,
+    )
+    .join("");
+
+  searchResults.hidden = false;
+});
+
+searchResults.addEventListener("click", (e) => {
+  const li = e.target.closest("li");
+  if (!li) return;
+  selectStation(li.dataset.crs, li.dataset.name);
+});
+
+// Keyboard navigation
+searchInput.addEventListener("keydown", (e) => {
+  const items = [...searchResults.querySelectorAll("li")];
+  if (!items.length) return;
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+    updateHighlight(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    highlightedIndex = Math.max(highlightedIndex - 1, 0);
+    updateHighlight(items);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const target = highlightedIndex >= 0 ? items[highlightedIndex] : items[0];
+    if (target) selectStation(target.dataset.crs, target.dataset.name);
+  } else if (e.key === "Escape") {
+    searchResults.hidden = true;
+    highlightedIndex = -1;
+  }
+});
+
+function updateHighlight(items) {
+  items.forEach((li, i) =>
+    li.classList.toggle("highlighted", i === highlightedIndex),
+  );
+  items[highlightedIndex]?.scrollIntoView({ block: "nearest" });
+}
+
+function selectStation(crs, name) {
+  searchInput.value = name;
+  searchResults.hidden = true;
+  searchResults.innerHTML = "";
+  highlightedIndex = -1;
+  setStation(crs, name);
+}
+
+// Close results if clicking outside
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#station_search")) {
+    searchResults.hidden = true;
+    highlightedIndex = -1;
+  }
+});
 
 // Countdown
 class Countdown {
   #endTime = null;
   #isLate = false;
-  #confirmedLate = false; // true only when the API has returned an explicit delayed time
-  #hasLoaded = false; // true after the first successful data fetch
+  #confirmedLate = false;
+  #isCancelled = false;
+  #hasLoaded = false;
   #hours = 0;
   #minutes = 0;
   #seconds = 0;
@@ -68,21 +181,25 @@ class Countdown {
   #labelEl = document.querySelector("#cd_label");
   #timerEl = document.querySelector("#cd_timer");
 
-  constructor() {
-    // #endTime and #hasLoaded stay at their default values (null / false)
-    // until the first real data arrives via setTime() or setLate().
-  }
+  constructor() {}
 
   setTime(timeString) {
     this.#endTime = timeString ? this.#parseTime(timeString) : null;
     this.#confirmedLate = false;
+    this.#isCancelled = false;
     this.#hasLoaded = true;
   }
 
-  // Call this when the API confirms the service is delayed with a new time.
   setLate(timeString) {
     this.#endTime = this.#parseTime(timeString);
     this.#confirmedLate = true;
+    this.#isCancelled = false;
+    this.#hasLoaded = true;
+  }
+
+  setCancelled() {
+    this.#endTime = null;
+    this.#isCancelled = true;
     this.#hasLoaded = true;
   }
 
@@ -106,8 +223,17 @@ class Countdown {
   }
 
   #render() {
-    // Don't show anything until the first fetch has resolved
     if (!this.#hasLoaded) return;
+
+    if (this.#isCancelled) {
+      this.#timerEl.textContent = "Cancelled";
+      this.#labelEl.textContent = "This Service Has Been";
+      this.#timerEl.classList.add("cancelled-timer");
+      this.#timerEl.classList.remove("late");
+      return;
+    }
+
+    this.#timerEl.classList.remove("cancelled-timer");
 
     if (!this.#endTime) {
       this.#timerEl.textContent = "No Services";
@@ -119,8 +245,6 @@ class Countdown {
     const pad = (n) => String(n).padStart(2, "0");
 
     if (this.#isLate) {
-      // Only show a counting-up red timer if the service is confirmed delayed.
-      // If we haven't received a new estimated time yet, stay at 00:00:00.
       if (this.#confirmedLate) {
         this.#timerEl.textContent = `${pad(this.#hours)}:${pad(this.#minutes)}:${pad(this.#seconds)}`;
         this.#labelEl.textContent = "Late By";
@@ -139,7 +263,7 @@ class Countdown {
 
   start() {
     setInterval(() => {
-      if (this.#endTime) {
+      if (this.#endTime && !this.#isCancelled) {
         this.#calculateComponents(this.#millisecondsRemaining());
       }
       this.#render();
@@ -148,7 +272,6 @@ class Countdown {
 }
 
 // Display
-// Returns duration between two "HH:MM" time strings.
 function getJourneyDuration(start, end) {
   const toMinutes = (t) => {
     const [h, m] = t.split(":").map(Number);
@@ -164,8 +287,6 @@ function getJourneyDuration(start, end) {
   };
 }
 
-// Resets all fields with "-" — only called when we *know* there are no services,
-// never on a loading state or network error.
 function clearDisplay(countdown) {
   const fields = [
     "from",
@@ -183,8 +304,10 @@ function clearDisplay(countdown) {
   countdown.setTime("");
 }
 
-// Fetches departure and service data for a station, then updates the UI.
 async function updateDisplay(crs, countdown) {
+  // If we're in the middle of showing a cancellation notice, don't override it
+  if (cancellationLingerTimer) return;
+
   try {
     const departuresRes = await fetch(`/api/departures/${crs}`);
     const departuresData = await departuresRes.json();
@@ -195,10 +318,41 @@ async function updateDisplay(crs, countdown) {
       return;
     }
 
-    const firstService = services[0];
-    const serviceId = firstService.serviceIdGuid;
+    // Check if the service we're currently displaying has become cancelled
+    if (currentServiceId) {
+      const currentInList = services.find(
+        (s) => s.serviceIdGuid === currentServiceId,
+      );
+      if (currentInList?.isCancelled) {
+        // Show cancellation notice and hold it for CANCELLATION_LINGER_MS before
+        // refreshing to the next service
+        const cancelReasonEl = document.querySelector("#cancel_reason");
+        cancelReasonEl.textContent =
+          currentInList.cancelReason ?? "This service has been cancelled.";
+        cancelReasonEl.hidden = false;
+        countdown.setCancelled();
 
-    const serviceRes = await fetch(`/api/services/${serviceId}`);
+        cancellationLingerTimer = setTimeout(() => {
+          cancellationLingerTimer = null;
+          cancelReasonEl.hidden = true;
+          cancelReasonEl.textContent = "";
+          currentServiceId = null;
+          updateDisplay(crs, countdown);
+        }, CANCELLATION_LINGER_MS);
+        return;
+      }
+    }
+
+    // Find the first non-cancelled service for the main display
+    const firstService = services.find((s) => !s.isCancelled);
+    if (!firstService) {
+      clearDisplay(countdown);
+      return;
+    }
+
+    const serviceRes = await fetch(
+      `/api/services/${firstService.serviceIdGuid}`,
+    );
     const serviceData = await serviceRes.json();
 
     const callingPoints =
@@ -208,25 +362,43 @@ async function updateDisplay(crs, countdown) {
       return;
     }
 
-    // Determine actual departure time (may be delayed)
+    // Guard: service detail says cancelled (updated between the two fetches)
+    if (serviceData.isCancelled) {
+      const cancelReasonEl = document.querySelector("#cancel_reason");
+      cancelReasonEl.textContent =
+        serviceData.cancelReason ?? "This service has been cancelled.";
+      cancelReasonEl.hidden = false;
+      countdown.setCancelled();
+
+      cancellationLingerTimer = setTimeout(() => {
+        cancellationLingerTimer = null;
+        cancelReasonEl.hidden = true;
+        cancelReasonEl.textContent = "";
+        currentServiceId = null;
+        updateDisplay(crs, countdown);
+      }, CANCELLATION_LINGER_MS);
+      return;
+    }
+
+    // Normal update
+    currentServiceId = firstService.serviceIdGuid;
+
     const scheduledTime = firstService.std;
     const estimatedTime = firstService.etd;
     const isDelayed = estimatedTime?.length === 5;
     const departureTime = isDelayed ? estimatedTime : scheduledTime;
 
-    // Arrival at final calling point
     const lastStop = callingPoints.at(-1);
     const arrivalTime = lastStop.et?.length === 5 ? lastStop.et : lastStop.st;
     const duration = getJourneyDuration(departureTime, arrivalTime);
 
-    // Update DOM
     document.querySelector("#from").textContent = firstService.origin[0].crs;
     document.querySelector("#to").textContent = firstService.destination[0].crs;
     document.querySelector("#platform_num").textContent =
       firstService.platform ?? "-";
     document.querySelector("#stop_num").textContent = callingPoints.length;
     document.querySelector("#cars_num").textContent =
-      firstService.length ?? "-";
+      firstService.length || "-";
     document.querySelector("#jt_time").textContent = duration.formatted;
     document.querySelector("#op_name").textContent = firstService.operator;
 
@@ -234,37 +406,44 @@ async function updateDisplay(crs, countdown) {
     departEl.textContent = departureTime;
     departEl.classList.toggle("late", isDelayed);
 
+    const cancelReasonEl = document.querySelector("#cancel_reason");
+    cancelReasonEl.hidden = true;
+    cancelReasonEl.textContent = "";
+
     if (isDelayed) {
       countdown.setLate(departureTime);
     } else {
       countdown.setTime(departureTime ?? "");
     }
 
-    // Populate upcoming departures
+    // Upcoming departures — show all services (including cancelled), skipping
+    // the one already shown as the main service.
+    const upcoming = services.filter((s) => s !== firstService).slice(0, 3);
     const nextSlots = ["#next_1", "#next_2", "#next_3"];
     nextSlots.forEach((selector, i) => {
       const slot = document.querySelector(selector);
-      const service = services[i + 1];
+      const service = upcoming[i];
       if (service) {
+        const isCancelled = service.isCancelled;
         slot.children[0].textContent = service.destination[0].locationName;
-        slot.children[1].textContent = service.std;
+        slot.children[1].textContent = isCancelled ? "Cancelled" : service.std;
+        slot.children[0].classList.toggle("cancelled", isCancelled);
+        slot.children[1].classList.toggle("cancelled", isCancelled);
       } else {
         slot.children[0].textContent = "-";
         slot.children[1].textContent = "-";
+        slot.children[0].classList.remove("cancelled");
+        slot.children[1].classList.remove("cancelled");
       }
     });
   } catch (err) {
-    // Network/parse error — leave the existing display intact rather than
-    // flashing "No Services" during a transient failure.
     console.error("Failed to update display:", err);
   }
 }
 
 // Station Finder
-// Converts degs to rads
 const toRadians = (deg) => (Math.PI / 180) * deg;
 
-// Gives distance (km) between two coord sets
 function haversine(lat1, lon1, lat2, lon2) {
   const dLat = toRadians(lat2 - lat1);
   const dLon = toRadians(lon2 - lon1);
@@ -276,10 +455,8 @@ function haversine(lat1, lon1, lat2, lon2) {
   return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * EARTH_RADIUS_KM;
 }
 
-// Finding nearest station to given coords
 async function findNearestStation(lat, lon) {
-  const res = await fetch("/api/stations");
-  const stations = await res.json();
+  const stations = await loadStations();
 
   return stations.reduce(
     (closest, station) => {
@@ -296,8 +473,5 @@ async function findNearestStation(lat, lon) {
 const countdown = new Countdown();
 countdown.start();
 
-// Fetch location immediately on page load, then re-check every hour.
-// Each call to refreshLocation → setStation → updateDisplay also
-// restarts the 30-second display polling loop.
 refreshLocation();
 setInterval(refreshLocation, GEOLOCATION_REFRESH_MS);

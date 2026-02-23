@@ -12,6 +12,16 @@
     <body>
         <header>
             <h1>Next Rail</h1>
+            <section id="station_search">
+                <input
+                    id="search_input"
+                    type="text"
+                    placeholder="Search station…"
+                    autocomplete="off"
+                    spellcheck="false"
+                />
+                <ul id="search_results"></ul>
+            </section>
             <button id="locate">
                 <!-- Marker Icon -->
                 <svg
@@ -52,6 +62,7 @@
                 <p>Departing</p>
                 <p id="depart_time" class="value"></p>
             </section>
+            <p id="cancel_reason" hidden></p>
             <section class="info_list">
                 <p>Platform</p>
                 <p id="platform_num" class="value"></p>
@@ -80,16 +91,16 @@
                 <p>Upcoming Departures</p>
             </section>
             <section id="next_1" class="info_list">
-                <p>Bognor Regis</p>
-                <p class="value">01:23</p>
+                <p></p>
+                <p class="value"></p>
             </section>
             <section id="next_2" class="info_list">
-                <p>London Waterloo</p>
-                <p class="value">02:34</p>
+                <p></p>
+                <p class="value"></p>
             </section>
             <section id="next_3" class="info_list">
-                <p>London Paddington</p>
-                <p class="value">03:45</p>
+                <p></p>
+                <p class="value"></p>
             </section>
         </article>
     </body>
