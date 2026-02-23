@@ -36,6 +36,6 @@ app.get("/api/services/:serviceId", async (req, res) => {
   }
 });
 
-app.get("/api/stations", async (req, res) => {
+app.get("/api/stations", (req, res) => {
   res.json(stations);
 });

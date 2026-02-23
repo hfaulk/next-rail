@@ -261,5 +261,5 @@ async function findStation(usr_lat, usr_long) {
 }
 
 // Start app
-const cd = new Countdown("", "", "");
+const cd = new Countdown("", "");
 cd.start();
