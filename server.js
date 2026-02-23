@@ -1,5 +1,6 @@
 import express from "express";
 import "dotenv/config";
+import stations from "./uk-train-stations.json" with { type: "json" };
 
 const app = express();
 const TOKEN = process.env.HUXLEY_TOKEN;
@@ -36,5 +37,5 @@ app.get("/api/services/:serviceId", async (req, res) => {
 });
 
 app.get("/api/stations", async (req, res) => {
-  
+  res.json(stations);
 });
