@@ -31,10 +31,6 @@ class Countdown {
 
     this.on_end = on_end;
 
-    this.hours;
-    this.minutes;
-    this.seconds;
-
     this.late = false;
 
     this.timer_label = document.querySelector("#cd_label");
