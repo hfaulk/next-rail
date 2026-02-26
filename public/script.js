@@ -8,8 +8,8 @@ const CANCELLATION_LINGER_MS = 6_000; // How long to show "Cancelled" before mov
 // Station
 let currentCrs = null;
 let displayRefreshTimer = null;
-let currentServiceId = null; // serviceIdGuid of the service currently on the main display
-let cancellationLingerTimer = null; // prevents a new refresh overriding the cancelled notice too soon
+let currentServiceId = null; // serviceIdGuid of the service showing
+let cancellationLingerTimer = null; // ensures cancellation remains for the full time even after new data
 
 function setStation(crs, name) {
   document.querySelector("#stat_name").textContent = name;
@@ -17,10 +17,10 @@ function setStation(crs, name) {
 
   currentCrs = crs;
 
-  updateDisplay(crs, countdown);
+  updateDisplay(crs);
   clearInterval(displayRefreshTimer);
   displayRefreshTimer = setInterval(
-    () => updateDisplay(currentCrs, countdown),
+    () => updateDisplay(currentCrs),
     DISPLAY_REFRESH_MS,
   );
 }
@@ -57,12 +57,10 @@ async function loadStations() {
 }
 
 function showStationSearch() {
-  document.querySelector("#locate").hidden = true;
-  document.querySelector("#station_search").hidden = false;
   document.querySelector("#search_input").focus();
 }
 
-// Preload stations list in the background so search feels instant
+// Preload stations list
 loadStations();
 
 const searchInput = document.querySelector("#search_input");
@@ -88,11 +86,11 @@ searchInput.addEventListener("input", async () => {
         s.station_name.toLowerCase().includes(query) ||
         s["3alpha"].toLowerCase().includes(query),
     )
-    .sort((a, b) => {
-      const aName = a.station_name.toLowerCase().startsWith(query) ? 0 : 1;
-      const bName = b.station_name.toLowerCase().startsWith(query) ? 0 : 1;
-      return aName - bName;
-    })
+    .sort(
+      (a, b) =>
+        b.station_name.toLowerCase().startsWith(query) -
+        a.station_name.toLowerCase().startsWith(query),
+    )
     .slice(0, 8);
 
   if (!matches.length) {
@@ -103,7 +101,7 @@ searchInput.addEventListener("input", async () => {
 
   searchResults.innerHTML = matches
     .map(
-      (s, i) => `
+      (s) => `
       <li data-crs="${s["3alpha"]}" data-name="${s.station_name}">
         <span>${s.station_name}</span>
         <span class="result-crs">${s["3alpha"]}</span>
@@ -169,105 +167,107 @@ document.addEventListener("click", (e) => {
 
 // Countdown
 class Countdown {
-  #endTime = null;
-  #isLate = false;
-  #confirmedLate = false;
-  #isCancelled = false;
-  #hasLoaded = false;
-  #hours = 0;
-  #minutes = 0;
-  #seconds = 0;
-
-  #labelEl = document.querySelector("#cd_label");
-  #timerEl = document.querySelector("#cd_timer");
-
-  constructor() {}
-
-  setTime(timeString) {
-    this.#endTime = timeString ? this.#parseTime(timeString) : null;
-    this.#confirmedLate = false;
-    this.#isCancelled = false;
-    this.#hasLoaded = true;
+  constructor() {
+    this.end_time = null;
+    this.hours = 0;
+    this.minutes = 0;
+    this.seconds = 0;
+    this.late = false;
+    this.confirmed_late = false;
+    this.cancelled = false;
+    this.loaded = false;
+    this.timer_label = document.querySelector("#cd_label");
+    this.timer_elem = document.querySelector("#cd_timer");
   }
 
-  setLate(timeString) {
-    this.#endTime = this.#parseTime(timeString);
-    this.#confirmedLate = true;
-    this.#isCancelled = false;
-    this.#hasLoaded = true;
+  set_time(time_string) {
+    this.end_time = time_string ? this.string_to_time(time_string) : null;
+    this.cancelled = false;
+    this.confirmed_late = false;
+    this.loaded = true;
   }
 
-  setCancelled() {
-    this.#endTime = null;
-    this.#isCancelled = true;
-    this.#hasLoaded = true;
+  set_late(time_string) {
+    this.end_time = this.string_to_time(time_string);
+    this.cancelled = false;
+    this.confirmed_late = true;
+    this.loaded = true;
   }
 
-  #parseTime(timeString) {
-    const [hours, minutes] = timeString.split(":").map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
+  set_cancelled() {
+    this.end_time = null;
+    this.cancelled = true;
+    this.loaded = true;
+  }
+
+  string_to_time(time_string) {
+    const [hours, minutes] = time_string.split(":");
+    const date = new Date(); // New date object with current date & time
+    date.setHours(parseInt(hours), parseInt(minutes), 0, 0); // Replace hours & mins with parsed info
     return date;
   }
 
-  #millisecondsRemaining() {
-    return this.#endTime.getTime() - Date.now();
+  time_remaining() {
+    return this.end_time.getTime() - new Date().getTime();
   }
 
-  #calculateComponents(ms) {
-    this.#isLate = ms < 0;
-    const absDiff = Math.abs(ms);
-    this.#hours = Math.floor(absDiff / (1_000 * 60 * 60));
-    this.#minutes = Math.floor((absDiff / 60_000) % 60);
-    this.#seconds = Math.floor((absDiff / 1_000) % 60);
+  calc_times(milli) {
+    if (milli < 0) {
+      milli = -milli;
+      this.late = true;
+    } else {
+      this.late = false;
+    }
+    this.hours = Math.floor(milli / (1000 * 60 * 60));
+    this.minutes = Math.floor((milli / 60000) % 60);
+    this.seconds = Math.floor((milli / 1000) % 60);
   }
 
-  #render() {
-    if (!this.#hasLoaded) return;
+  display_time() {
+    if (!this.loaded) return;
 
-    if (this.#isCancelled) {
-      this.#timerEl.textContent = "Cancelled";
-      this.#labelEl.textContent = "This Service Has Been";
-      this.#timerEl.classList.add("cancelled-timer");
-      this.#timerEl.classList.remove("late");
+    if (this.cancelled) {
+      this.timer_elem.textContent = "Cancelled";
+      this.timer_label.textContent = "This Service Has Been";
+      this.timer_elem.classList.add("cancelled-timer");
+      this.timer_elem.classList.remove("late");
       return;
     }
 
-    this.#timerEl.classList.remove("cancelled-timer");
+    this.timer_elem.classList.remove("cancelled-timer");
 
-    if (!this.#endTime) {
-      this.#timerEl.textContent = "No Services";
-      this.#labelEl.textContent = "";
-      this.#timerEl.classList.remove("late");
+    if (!this.end_time) {
+      this.timer_elem.textContent = "No Services";
+      this.timer_label.textContent = "";
+      this.timer_elem.classList.remove("late");
       return;
     }
 
-    const pad = (n) => String(n).padStart(2, "0");
+    this.timer_elem.textContent = `${String(this.hours).padStart(2, "0")}:${String(this.minutes).padStart(2, "0")}:${String(this.seconds).padStart(2, "0")}`;
 
-    if (this.#isLate) {
-      if (this.#confirmedLate) {
-        this.#timerEl.textContent = `${pad(this.#hours)}:${pad(this.#minutes)}:${pad(this.#seconds)}`;
-        this.#labelEl.textContent = "Late By";
-        this.#timerEl.classList.add("late");
+    if (this.late) {
+      if (this.confirmed_late) {
+        this.timer_label.textContent = "Late By";
+        this.timer_elem.classList.add("late");
       } else {
-        this.#timerEl.textContent = "00:00:00";
-        this.#labelEl.textContent = "Departing Soon";
-        this.#timerEl.classList.remove("late");
+        // Scheduled time has passed but no revised time yet — hold at zero
+        this.timer_elem.textContent = "00:00:00";
+        this.timer_label.textContent = "Departing Soon";
+        this.timer_elem.classList.remove("late");
       }
     } else {
-      this.#timerEl.textContent = `${pad(this.#hours)}:${pad(this.#minutes)}:${pad(this.#seconds)}`;
-      this.#labelEl.textContent = "Departing In";
-      this.#timerEl.classList.remove("late");
+      this.timer_label.textContent = "Departing In";
+      this.timer_elem.classList.remove("late");
     }
   }
 
   start() {
     setInterval(() => {
-      if (this.#endTime && !this.#isCancelled) {
-        this.#calculateComponents(this.#millisecondsRemaining());
+      if (this.end_time && !this.cancelled) {
+        this.calc_times(this.time_remaining());
       }
-      this.#render();
-    }, COUNTDOWN_INTERVAL_MS);
+      this.display_time();
+    }, 1000);
   }
 }
 
@@ -279,15 +279,12 @@ function getJourneyDuration(start, end) {
   };
 
   let diff = toMinutes(end) - toMinutes(start);
-  if (diff < 0) diff += 24 * 60;
+  if (diff < 0) diff += 24 * 60; // Handle overnight journeys
 
-  return {
-    totalMinutes: diff,
-    formatted: `${Math.floor(diff / 60)}h ${diff % 60}m`,
-  };
+  return `${Math.floor(diff / 60)}h ${diff % 60}m`;
 }
 
-function clearDisplay(countdown) {
+function clearDisplay() {
   const fields = [
     "from",
     "to",
@@ -301,10 +298,25 @@ function clearDisplay(countdown) {
   for (const id of fields) {
     document.querySelector(`#${id}`).textContent = "-";
   }
-  countdown.setTime("");
+  countdown.set_time("");
 }
 
-async function updateDisplay(crs, countdown) {
+function showCancellation(reason) {
+  const cancelReasonEl = document.querySelector("#cancel_reason");
+  cancelReasonEl.textContent = reason ?? "This service has been cancelled.";
+  cancelReasonEl.hidden = false;
+  countdown.set_cancelled();
+
+  cancellationLingerTimer = setTimeout(() => {
+    cancellationLingerTimer = null;
+    cancelReasonEl.hidden = true;
+    cancelReasonEl.textContent = "";
+    currentServiceId = null;
+    updateDisplay(currentCrs);
+  }, CANCELLATION_LINGER_MS);
+}
+
+async function updateDisplay(crs) {
   // If we're in the middle of showing a cancellation notice, don't override it
   if (cancellationLingerTimer) return;
 
@@ -314,7 +326,7 @@ async function updateDisplay(crs, countdown) {
 
     const services = departuresData.trainServices;
     if (!services?.length) {
-      clearDisplay(countdown);
+      clearDisplay();
       return;
     }
 
@@ -324,21 +336,7 @@ async function updateDisplay(crs, countdown) {
         (s) => s.serviceIdGuid === currentServiceId,
       );
       if (currentInList?.isCancelled) {
-        // Show cancellation notice and hold it for CANCELLATION_LINGER_MS before
-        // refreshing to the next service
-        const cancelReasonEl = document.querySelector("#cancel_reason");
-        cancelReasonEl.textContent =
-          currentInList.cancelReason ?? "This service has been cancelled.";
-        cancelReasonEl.hidden = false;
-        countdown.setCancelled();
-
-        cancellationLingerTimer = setTimeout(() => {
-          cancellationLingerTimer = null;
-          cancelReasonEl.hidden = true;
-          cancelReasonEl.textContent = "";
-          currentServiceId = null;
-          updateDisplay(crs, countdown);
-        }, CANCELLATION_LINGER_MS);
+        showCancellation(currentInList.cancelReason);
         return;
       }
     }
@@ -346,7 +344,7 @@ async function updateDisplay(crs, countdown) {
     // Find the first non-cancelled service for the main display
     const firstService = services.find((s) => !s.isCancelled);
     if (!firstService) {
-      clearDisplay(countdown);
+      clearDisplay();
       return;
     }
 
@@ -358,25 +356,13 @@ async function updateDisplay(crs, countdown) {
     const callingPoints =
       serviceData.subsequentCallingPoints?.[0]?.callingPoint;
     if (!callingPoints) {
-      clearDisplay(countdown);
+      clearDisplay();
       return;
     }
 
     // Guard: service detail says cancelled (updated between the two fetches)
     if (serviceData.isCancelled) {
-      const cancelReasonEl = document.querySelector("#cancel_reason");
-      cancelReasonEl.textContent =
-        serviceData.cancelReason ?? "This service has been cancelled.";
-      cancelReasonEl.hidden = false;
-      countdown.setCancelled();
-
-      cancellationLingerTimer = setTimeout(() => {
-        cancellationLingerTimer = null;
-        cancelReasonEl.hidden = true;
-        cancelReasonEl.textContent = "";
-        currentServiceId = null;
-        updateDisplay(crs, countdown);
-      }, CANCELLATION_LINGER_MS);
+      showCancellation(serviceData.cancelReason);
       return;
     }
 
@@ -385,13 +371,13 @@ async function updateDisplay(crs, countdown) {
 
     const scheduledTime = firstService.std;
     const estimatedTime = firstService.etd;
+    // The API returns "On time" or "Delayed" as the estimated time when there's
+    // no specific revised time, so a 5-character string means an actual time e.g. "14:32"
     const isDelayed = estimatedTime?.length === 5;
     const departureTime = isDelayed ? estimatedTime : scheduledTime;
 
     const lastStop = callingPoints.at(-1);
     const arrivalTime = lastStop.et?.length === 5 ? lastStop.et : lastStop.st;
-    const duration = getJourneyDuration(departureTime, arrivalTime);
-
     document.querySelector("#from").textContent = firstService.origin[0].crs;
     document.querySelector("#to").textContent = firstService.destination[0].crs;
     document.querySelector("#platform_num").textContent =
@@ -399,7 +385,10 @@ async function updateDisplay(crs, countdown) {
     document.querySelector("#stop_num").textContent = callingPoints.length;
     document.querySelector("#cars_num").textContent =
       firstService.length || "-";
-    document.querySelector("#jt_time").textContent = duration.formatted;
+    document.querySelector("#jt_time").textContent = getJourneyDuration(
+      departureTime,
+      arrivalTime,
+    );
     document.querySelector("#op_name").textContent = firstService.operator;
 
     const departEl = document.querySelector("#depart_time");
@@ -411,9 +400,9 @@ async function updateDisplay(crs, countdown) {
     cancelReasonEl.textContent = "";
 
     if (isDelayed) {
-      countdown.setLate(departureTime);
+      countdown.set_late(departureTime);
     } else {
-      countdown.setTime(departureTime ?? "");
+      countdown.set_time(departureTime ?? "");
     }
 
     // Upcoming departures — show all services (including cancelled), skipping
@@ -458,15 +447,18 @@ function haversine(lat1, lon1, lat2, lon2) {
 async function findNearestStation(lat, lon) {
   const stations = await loadStations();
 
-  return stations.reduce(
-    (closest, station) => {
-      const dist = haversine(lat, lon, station.latitude, station.longitude);
-      return dist < closest.dist
-        ? { crs: station["3alpha"], name: station.station_name, dist }
-        : closest;
-    },
-    { dist: Infinity, crs: null, name: null },
-  );
+  let closest = null;
+  let closestDist = Infinity;
+
+  for (const station of stations) {
+    const dist = haversine(lat, lon, station.latitude, station.longitude);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closest = station;
+    }
+  }
+
+  return { crs: closest["3alpha"], name: closest.station_name };
 }
 
 // Initialise
