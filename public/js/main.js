@@ -8,13 +8,20 @@ import {
 
 // Shared State
 let currentCrs = null;
-let currentServiceId = null;
+const currentServiceId = { depart: null, arrive: null };
 let displayRefreshTimer = null;
-let cancellationLingerTimer = null;
+const cancellationLingerTimer = { depart: null, arrive: null };
 
-// Countdown
-const countdown = new Countdown("depart");
-countdown.start();
+// Countdowns
+const depart_countdown = new Countdown("depart");
+depart_countdown.start();
+
+const arrive_countdown = new Countdown("arrive");
+arrive_countdown.start();
+
+function getCountdown(type = "depart") {
+  return type === "arrive" ? arrive_countdown : depart_countdown;
+}
 
 // Display
 function getJourneyDuration(start, end) {
@@ -27,34 +34,37 @@ function getJourneyDuration(start, end) {
   return `${Math.floor(diff / 60)}h ${diff % 60}m`;
 }
 
-function clearDisplay() {
+function clearDisplay(type = "depart") {
   const fields = [
-    "depart_from", "depart_to", "depart_time", "depart_platform_num",
-    "depart_stop_num", "depart_cars_num", "depart_jt_time", "depart_op_name",
+    "from", "to", "time", "platform_num",
+    "stop_num", "cars_num", "jt_time", "op_name",
   ];
+  const timeFieldId = type === "arrive" ? "arrive_depart_time" : `${type}_time`;
+
   for (const id of fields) {
-    document.querySelector(`#${id}`).textContent = "-";
+    const fieldId = id === "time" ? timeFieldId : `${type}_${id}`;
+    document.querySelector(`#${fieldId}`).textContent = "-";
   }
-  countdown.set_time("");
+  getCountdown(type).set_time("");
 }
 
-function showCancellation(reason) {
-  const cancelReasonEl = document.querySelector("#depart_cancel_reason");
+function showCancellation(type = "depart", reason) {
+  const cancelReasonEl = document.querySelector(`#${type}_cancel_reason`);
   cancelReasonEl.textContent = reason ?? "This service has been cancelled.";
   cancelReasonEl.hidden = false;
-  countdown.set_cancelled();
+  getCountdown(type).set_cancelled();
 
-  cancellationLingerTimer = setTimeout(() => {
-    cancellationLingerTimer = null;
+  cancellationLingerTimer[type] = setTimeout(() => {
+    cancellationLingerTimer[type] = null;
     cancelReasonEl.hidden = true;
     cancelReasonEl.textContent = "";
-    currentServiceId = null;
-    updateDisplay(currentCrs);
+    currentServiceId[type] = null;
+    updateDisplay(type, currentCrs);
   }, CANCELLATION_LINGER_MS);
 }
 
-async function updateDisplay(crs) {
-  if (cancellationLingerTimer) return;
+async function updateDisplay(type = "depart", crs) {
+  if (cancellationLingerTimer[type]) return;
 
   try {
     const departuresRes = await fetch(`/api/departures/${crs}`);
@@ -62,23 +72,23 @@ async function updateDisplay(crs) {
 
     const services = departuresData.trainServices;
     if (!services?.length) {
-      clearDisplay();
+      clearDisplay(type);
       return;
     }
 
-    if (currentServiceId) {
+    if (currentServiceId[type]) {
       const currentInList = services.find(
-        (s) => s.serviceIdGuid === currentServiceId,
+        (s) => s.serviceIdGuid === currentServiceId[type],
       );
       if (currentInList?.isCancelled) {
-        showCancellation(currentInList.cancelReason);
+        showCancellation(type, currentInList.cancelReason);
         return;
       }
     }
 
     const firstService = services.find((s) => !s.isCancelled);
     if (!firstService) {
-      clearDisplay();
+      clearDisplay(type);
       return;
     }
 
@@ -87,16 +97,16 @@ async function updateDisplay(crs) {
 
     const callingPoints = serviceData.subsequentCallingPoints?.[0]?.callingPoint;
     if (!callingPoints) {
-      clearDisplay();
+      clearDisplay(type);
       return;
     }
 
     if (serviceData.isCancelled) {
-      showCancellation(serviceData.cancelReason);
+      showCancellation(type, serviceData.cancelReason);
       return;
     }
 
-    currentServiceId = firstService.serviceIdGuid;
+    currentServiceId[type] = firstService.serviceIdGuid;
 
     const scheduledTime = firstService.std;
     const estimatedTime = firstService.etd;
@@ -105,31 +115,32 @@ async function updateDisplay(crs) {
 
     const lastStop = callingPoints.at(-1);
     const arrivalTime = lastStop.et?.length === 5 ? lastStop.et : lastStop.st;
+    const timeFieldId = type === "arrive" ? "arrive_depart_time" : `${type}_time`;
 
-    document.querySelector("#depart_from").textContent = firstService.origin[0].crs;
-    document.querySelector("#depart_to").textContent = firstService.destination[0].crs;
-    document.querySelector("#depart_platform_num").textContent = firstService.platform ?? "-";
-    document.querySelector("#depart_stop_num").textContent = callingPoints.length;
-    document.querySelector("#depart_cars_num").textContent = firstService.length || "-";
-    document.querySelector("#depart_jt_time").textContent = getJourneyDuration(departureTime, arrivalTime);
-    document.querySelector("#depart_op_name").textContent = firstService.operator;
+    document.querySelector(`#${type}_from`).textContent = firstService.origin[0].crs;
+    document.querySelector(`#${type}_to`).textContent = firstService.destination[0].crs;
+    document.querySelector(`#${type}_platform_num`).textContent = firstService.platform ?? "-";
+    document.querySelector(`#${type}_stop_num`).textContent = callingPoints.length;
+    document.querySelector(`#${type}_cars_num`).textContent = firstService.length || "-";
+    document.querySelector(`#${type}_jt_time`).textContent = getJourneyDuration(departureTime, arrivalTime);
+    document.querySelector(`#${type}_op_name`).textContent = firstService.operator;
 
-    const departEl = document.querySelector("#depart_time");
-    departEl.textContent = departureTime;
-    departEl.classList.toggle("late", isDelayed);
+    const timeEl = document.querySelector(`#${timeFieldId}`);
+    timeEl.textContent = departureTime;
+    timeEl.classList.toggle("late", isDelayed);
 
-    const cancelReasonEl = document.querySelector("#depart_cancel_reason");
+    const cancelReasonEl = document.querySelector(`#${type}_cancel_reason`);
     cancelReasonEl.hidden = true;
     cancelReasonEl.textContent = "";
 
     if (isDelayed) {
-      countdown.set_late(departureTime);
+      getCountdown(type).set_late(departureTime);
     } else {
-      countdown.set_time(departureTime ?? "");
+      getCountdown(type).set_time(departureTime ?? "");
     }
 
     const upcoming = services.filter((s) => s !== firstService).slice(0, 3);
-    const nextSlots = ["#next_depart_1", "#next_depart_2", "#next_depart_3"];
+    const nextSlots = [`#next_${type}_1`, `#next_${type}_2`, `#next_${type}_3`];
     nextSlots.forEach((selector, i) => {
       const slot = document.querySelector(selector);
       const service = upcoming[i];
@@ -158,9 +169,13 @@ function setStation(crs, name) {
 
   currentCrs = crs;
 
-  updateDisplay(crs);
+  updateDisplay("depart", crs);
+  updateDisplay("arrive", crs);
   clearInterval(displayRefreshTimer);
-  displayRefreshTimer = setInterval(() => updateDisplay(currentCrs), DISPLAY_REFRESH_MS);
+  displayRefreshTimer = setInterval(() => {
+    updateDisplay("depart", currentCrs);
+    updateDisplay("arrive", currentCrs);
+  }, DISPLAY_REFRESH_MS);
 }
 
 // Geolocation
