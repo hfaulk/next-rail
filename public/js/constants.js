@@ -1,0 +1,5 @@
+export const EARTH_RADIUS_KM = 6_371;
+export const COUNTDOWN_INTERVAL_MS = 1_000;
+export const DISPLAY_REFRESH_MS = 10_000;
+export const GEOLOCATION_REFRESH_MS = 3_600_000;
+export const CANCELLATION_LINGER_MS = 6_000;
