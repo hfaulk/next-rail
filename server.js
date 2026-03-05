@@ -10,6 +10,17 @@ app.use(express.static("public"));
 
 app.listen(3000, () => console.log("Running on http://localhost:3000"));
 
+// Page Routes
+app.get("/", (req, res) => {
+  res.sendFile("index.html", { root: "public/html" });
+});
+
+app.get("/graph", (req, res) => {
+  res.sendFile("graph.html", { root: "public/html" });
+});
+
+
+// API Routes
 app.get("/api/departures/:station", async (req, res) => {
   try {
     const url =
