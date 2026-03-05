@@ -287,15 +287,22 @@ header h1 {
 
 .cancelled-timer {
     color: darkred;
-    font-size: 0.55em;
     letter-spacing: 0.02em;
-    white-space: nowrap;
 }
 
 .status-timer {
-    font-size: 0.55em;
     letter-spacing: 0.02em;
+}
+
+#depart_cd_timer.cancelled-timer,
+#arrive_cd_timer.cancelled-timer,
+#depart_cd_timer.status-timer,
+#arrive_cd_timer.status-timer {
+    font-size: 1.6rem;
     white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 @media (max-width: 480px) {
