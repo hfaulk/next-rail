@@ -84,7 +84,8 @@ header h1 {
     max-width: 70%;
 }
 
-#depart_op_name {
+#depart_op_name,
+#arrive_op_name {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -120,11 +121,13 @@ header h1 {
     box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.45);
 }
 
-#depart_countdown {
+#depart_countdown,
+#arrive_countdown {
     padding: 20px 0 12px 0;
 }
 
-#depart_cd_label {
+#depart_cd_label,
+#arrive_cd_label {
     font-size: 1.5em;
     padding: 0;
     margin: 0;
@@ -135,7 +138,8 @@ header h1 {
     color: darkred;
 }
 
-#depart_cd_timer {
+#depart_cd_timer,
+#arrive_cd_timer {
     font-size: 5em;
     padding: 0;
     margin: 0;
@@ -150,7 +154,10 @@ header h1 {
 
 #depart_to,
 #depart_from,
-#depart_arrow {
+#depart_arrow,
+#arrive_to,
+#arrive_from,
+#arrive_arrow {
     font-weight: bold;
     color: midnightblue;
     font-size: 1.8em;
@@ -158,20 +165,26 @@ header h1 {
 }
 
 #depart_tofrom,
-#journey {
+#arrive_tofrom,
+#journey,
+#arrive_journey {
     border-bottom: 1px solid #ddd;
 }
 
-#journey {
+#journey,
+#arrive_journey {
     padding-bottom: 10px;
 }
 
 #depart_div,
-#depart_operator {
+#depart_operator,
+#arrive_depart_div,
+#arrive_operator {
     padding-top: 10px;
 }
 
-#depart_next_train_label {
+#depart_next_train_label,
+#arrive_next_train_label {
     color: midnightblue;
     font-weight: bold;
     font-size: 1.6em;
@@ -180,7 +193,8 @@ header h1 {
     justify-content: center;
 }
 
-#next_depart_1 {
+#next_depart_1,
+#next_arrive_1 {
     margin-top: 10px;
 }
 
@@ -260,7 +274,8 @@ header h1 {
     opacity: 0.7;
 }
 
-#depart_cancel_reason {
+#depart_cancel_reason,
+#arrive_cancel_reason {
     font-size: 0.85em;
     color: darkred;
     font-style: italic;
@@ -285,16 +300,20 @@ header h1 {
         padding: 21px 0;
         margin: 17px auto;
     }
-    #depart_countdown {
+    #depart_countdown,
+    #arrive_countdown {
         padding: 25px 0 20px 0;
     }
-    #depart_cd_timer {
+    #depart_cd_timer,
+    #arrive_cd_timer {
         font-size: 4em;
     }
-    #depart_cd_label {
+    #depart_cd_label,
+    #arrive_cd_label {
         font-size: 1.3em;
     }
-    #depart_next_train_label {
+    #depart_next_train_label,
+    #arrive_next_train_label {
         font-size: 1.5em;
         font-weight: bold;
     }

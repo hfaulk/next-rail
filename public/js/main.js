@@ -4,6 +4,7 @@ import {
   GEOLOCATION_REFRESH_MS,
   CANCELLATION_LINGER_MS,
   EARTH_RADIUS_KM,
+  DISPLAY_TYPES,
 } from "./constants.js";
 
 // Shared State
@@ -19,8 +20,40 @@ depart_countdown.start();
 const arrive_countdown = new Countdown("arrive");
 arrive_countdown.start();
 
+const DISPLAY_CONFIG = {
+  depart: {
+    listEndpoint: "departures",
+    scheduledKey: "std",
+    estimatedKey: "etd",
+    nextLocationKey: "destination",
+  },
+  arrive: {
+    listEndpoint: "arrivals",
+    scheduledKey: "sta",
+    estimatedKey: "eta",
+    nextLocationKey: "origin",
+  },
+};
+
 function getCountdown(type = "depart") {
   return type === "arrive" ? arrive_countdown : depart_countdown;
+}
+
+function getFieldId(type, field) {
+  if (field === "time" && type === "arrive") return "arrive_time";
+  if (field === "jt_time" && type === "arrive") return "jt_time";
+  return `${type}_${field}`;
+}
+
+function getServiceTimes(type, service) {
+  const cfg = DISPLAY_CONFIG[type] ?? DISPLAY_CONFIG.depart;
+  const scheduled = service[cfg.scheduledKey] ?? service.std ?? service.sta;
+  const estimated = service[cfg.estimatedKey] ?? service.etd ?? service.eta;
+  return { scheduled, estimated };
+}
+
+function refreshDisplays(crs) {
+  DISPLAY_TYPES.forEach((type) => updateDisplay(type, crs));
 }
 
 // Display
@@ -39,10 +72,9 @@ function clearDisplay(type = "depart") {
     "from", "to", "time", "platform_num",
     "stop_num", "cars_num", "jt_time", "op_name",
   ];
-  const timeFieldId = type === "arrive" ? "arrive_depart_time" : `${type}_time`;
 
   for (const id of fields) {
-    const fieldId = id === "time" ? timeFieldId : `${type}_${id}`;
+    const fieldId = getFieldId(type, id);
     document.querySelector(`#${fieldId}`).textContent = "-";
   }
   getCountdown(type).set_time("");
@@ -67,7 +99,8 @@ async function updateDisplay(type = "depart", crs) {
   if (cancellationLingerTimer[type]) return;
 
   try {
-    const departuresRes = await fetch(`/api/departures/${crs}`);
+    const cfg = DISPLAY_CONFIG[type] ?? DISPLAY_CONFIG.depart;
+    const departuresRes = await fetch(`/api/${cfg.listEndpoint}/${crs}`);
     const departuresData = await departuresRes.json();
 
     const services = departuresData.trainServices;
@@ -108,21 +141,21 @@ async function updateDisplay(type = "depart", crs) {
 
     currentServiceId[type] = firstService.serviceIdGuid;
 
-    const scheduledTime = firstService.std;
-    const estimatedTime = firstService.etd;
+    const { scheduled: scheduledTime, estimated: estimatedTime } = getServiceTimes(type, firstService);
     const isDelayed = estimatedTime?.length === 5;
     const departureTime = isDelayed ? estimatedTime : scheduledTime;
 
     const lastStop = callingPoints.at(-1);
     const arrivalTime = lastStop.et?.length === 5 ? lastStop.et : lastStop.st;
-    const timeFieldId = type === "arrive" ? "arrive_depart_time" : `${type}_time`;
+    const timeFieldId = getFieldId(type, "time");
+    const journeyFieldId = getFieldId(type, "jt_time");
 
     document.querySelector(`#${type}_from`).textContent = firstService.origin[0].crs;
     document.querySelector(`#${type}_to`).textContent = firstService.destination[0].crs;
     document.querySelector(`#${type}_platform_num`).textContent = firstService.platform ?? "-";
     document.querySelector(`#${type}_stop_num`).textContent = callingPoints.length;
     document.querySelector(`#${type}_cars_num`).textContent = firstService.length || "-";
-    document.querySelector(`#${type}_jt_time`).textContent = getJourneyDuration(departureTime, arrivalTime);
+    document.querySelector(`#${journeyFieldId}`).textContent = getJourneyDuration(departureTime, arrivalTime);
     document.querySelector(`#${type}_op_name`).textContent = firstService.operator;
 
     const timeEl = document.querySelector(`#${timeFieldId}`);
@@ -146,8 +179,10 @@ async function updateDisplay(type = "depart", crs) {
       const service = upcoming[i];
       if (service) {
         const isCancelled = service.isCancelled;
-        slot.children[0].textContent = service.destination[0].locationName;
-        slot.children[1].textContent = isCancelled ? "Cancelled" : service.std;
+        const { scheduled } = getServiceTimes(type, service);
+        const locationList = service[cfg.nextLocationKey] ?? service.destination ?? service.origin;
+        slot.children[0].textContent = locationList?.[0]?.locationName ?? "-";
+        slot.children[1].textContent = isCancelled ? "Cancelled" : (scheduled ?? "-");
         slot.children[0].classList.toggle("cancelled", isCancelled);
         slot.children[1].classList.toggle("cancelled", isCancelled);
       } else {
@@ -169,13 +204,9 @@ function setStation(crs, name) {
 
   currentCrs = crs;
 
-  updateDisplay("depart", crs);
-  updateDisplay("arrive", crs);
+  refreshDisplays(crs);
   clearInterval(displayRefreshTimer);
-  displayRefreshTimer = setInterval(() => {
-    updateDisplay("depart", currentCrs);
-    updateDisplay("arrive", currentCrs);
-  }, DISPLAY_REFRESH_MS);
+  displayRefreshTimer = setInterval(() => refreshDisplays(currentCrs), DISPLAY_REFRESH_MS);
 }
 
 // Geolocation
