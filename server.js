@@ -46,6 +46,19 @@ app.get("/api/departures-expand/:station", async (req, res) => {
   }
 });
 
+app.get("/api/arrivals/:station", async (req,res) => {
+  try {
+    const url =
+      HUXLEY + "/arrivals/" + req.params.station + "/10?accessToken=" + TOKEN;
+    const response = await fetch(url);
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch arrivals" });
+  }
+})
+
 app.get("/api/services/:serviceId", async (req, res) => {
   try {
     const url =
