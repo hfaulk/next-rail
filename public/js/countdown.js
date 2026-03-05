@@ -10,8 +10,8 @@ export default class Countdown {
     this.confirmed_late = false;
     this.cancelled = false;
     this.loaded = false;
-    this.timer_label = document.querySelector("#cd_label");
-    this.timer_elem = document.querySelector("#cd_timer");
+    this.timer_label = document.querySelector("#depart_cd_label");
+    this.timer_elem = document.querySelector("#depart_cd_timer");
   }
 
   set_time(time_string) {

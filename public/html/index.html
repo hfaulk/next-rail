@@ -47,64 +47,130 @@
         </article>
 
         <section id="app-body">
+
+        <!-- DEPARTURE -->
+        <section class="page-panel">
             <!-- Countdown Clock -->
-            <section id="countdown" class="info_panel">
-                <h2 id="cd_label"></h2>
-                <h1 id="cd_timer"></h1>
+            <section id="depart_countdown" class="info_panel">
+                <h2 id="depart_cd_label"></h2>
+                <h1 id="depart_cd_timer"></h1>
             </section>
 
             <!-- Journey Info -->
             <article id="journey_info" class="info_panel">
-                <section id="tofrom" class="info_list">
-                    <p id="from"></p>
-                    <p id="arrow">&rarr;</p>
-                    <p id="to"></p>
+                <section id="depart_tofrom" class="info_list">
+                    <p id="depart_from"></p>
+                    <p id="depart_arrow">&rarr;</p>
+                    <p id="depart_to"></p>
                 </section>
                 <section id="depart_div" class="info_list">
                     <p>Departing</p>
                     <p id="depart_time" class="value"></p>
                 </section>
-                <p id="cancel_reason" hidden></p>
+                <p id="depart_cancel_reason" hidden></p>
                 <section class="info_list">
                     <p>Platform</p>
-                    <p id="platform_num" class="value"></p>
+                    <p id="depart_platform_num" class="value"></p>
                 </section>
                 <section class="info_list">
                     <p>Stops</p>
-                    <p id="stop_num" class="value"></p>
+                    <p id="depart_stop_num" class="value"></p>
                 </section>
                 <section class="info_list">
                     <p>Carriages</p>
-                    <p id="cars_num" class="value"></p>
+                    <p id="depart_cars_num" class="value"></p>
                 </section>
                 <section id="journey" class="info_list">
                     <p>Journey</p>
-                    <p id="jt_time" class="value"></p>
+                    <p id="depart_jt_time" class="value"></p>
                 </section>
                 <section id="operator" class="info_list">
                     <p>Operator</p>
-                    <p id="op_name" class="value"></p>
+                    <p id="depart_op_name" class="value"></p>
                 </section>
             </article>
 
             <!-- Upcoming Departures -->
             <article class="info_panel">
-                <section id="next_train_label" class="info_list">
+                <section id="depart_next_train_label" class="info_list">
                     <p>Upcoming Departures</p>
                 </section>
-                <section id="next_1" class="info_list">
+                <section id="next_depart_1" class="info_list">
                     <p></p>
                     <p class="value"></p>
                 </section>
-                <section id="next_2" class="info_list">
+                <section id="next_depart_2" class="info_list">
                     <p></p>
                     <p class="value"></p>
                 </section>
-                <section id="next_3" class="info_list">
+                <section id="next_depart_3" class="info_list">
                     <p></p>
                     <p class="value"></p>
                 </section>
             </article>
         </section>
+        
+        <!-- ARRIVAL -->
+        <section class="page-panel">
+            <!-- Countdown Clock -->
+            <section id="arrive_countdown" class="info_panel">
+                <h2 id="arrive_cd_label"></h2>
+                <h1 id="arrive_cd_timer"></h1>
+            </section>
+
+            <!-- Journey Info -->
+            <article id="arrive_journey_info" class="info_panel">
+                <section id="arrive_tofrom" class="info_list">
+                    <p id="arrive_from"></p>
+                    <p id="arrive_arrow">&rarr;</p>
+                    <p id="arrive_to"></p>
+                </section>
+                <section id="arrive_depart_div" class="info_list">
+                    <p>Departing</p>
+                    <p id="arrive_depart_time" class="value"></p>
+                </section>
+                <p id="arrive_cancel_reason" hidden></p>
+                <section class="info_list">
+                    <p>Platform</p>
+                    <p id="arrive_platform_num" class="value"></p>
+                </section>
+                <section class="info_list">
+                    <p>Stops</p>
+                    <p id="arrive_stop_num" class="value"></p>
+                </section>
+                <section class="info_list">
+                    <p>Carriages</p>
+                    <p id="arrive_cars_num" class="value"></p>
+                </section>
+                <section id="arrive_journey" class="info_list">
+                    <p>Journey</p>
+                    <p id="jt_time" class="value"></p>
+                </section>
+                <section id="arrive_operator" class="info_list">
+                    <p>Operator</p>
+                    <p id="arrive_op_name" class="value"></p>
+                </section>
+            </article>
+
+            <!-- Upcoming Arrivals -->
+            <article class="info_panel">
+                <section id="arrive_next_train_label" class="info_list">
+                    <p>Upcoming Departures</p>
+                </section>
+                <section id="next_arrive_1" class="info_list">
+                    <p></p>
+                    <p class="value"></p>
+                </section>
+                <section id="next_arrive_2" class="info_list">
+                    <p></p>
+                    <p class="value"></p>
+                </section>
+                <section id="next_arrive_3" class="info_list">
+                    <p></p>
+                    <p class="value"></p>
+                </section>
+            </article>
+        </section>
+    </section>
     </body>
 </html>

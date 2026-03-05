@@ -29,8 +29,8 @@ function getJourneyDuration(start, end) {
 
 function clearDisplay() {
   const fields = [
-    "from", "to", "depart_time", "platform_num",
-    "stop_num", "cars_num", "jt_time", "op_name",
+    "depart_from", "depart_to", "depart_time", "depart_platform_num",
+    "depart_stop_num", "depart_cars_num", "depart_jt_time", "depart_op_name",
   ];
   for (const id of fields) {
     document.querySelector(`#${id}`).textContent = "-";
@@ -39,7 +39,7 @@ function clearDisplay() {
 }
 
 function showCancellation(reason) {
-  const cancelReasonEl = document.querySelector("#cancel_reason");
+  const cancelReasonEl = document.querySelector("#depart_cancel_reason");
   cancelReasonEl.textContent = reason ?? "This service has been cancelled.";
   cancelReasonEl.hidden = false;
   countdown.set_cancelled();
@@ -106,19 +106,19 @@ async function updateDisplay(crs) {
     const lastStop = callingPoints.at(-1);
     const arrivalTime = lastStop.et?.length === 5 ? lastStop.et : lastStop.st;
 
-    document.querySelector("#from").textContent = firstService.origin[0].crs;
-    document.querySelector("#to").textContent = firstService.destination[0].crs;
-    document.querySelector("#platform_num").textContent = firstService.platform ?? "-";
-    document.querySelector("#stop_num").textContent = callingPoints.length;
-    document.querySelector("#cars_num").textContent = firstService.length || "-";
-    document.querySelector("#jt_time").textContent = getJourneyDuration(departureTime, arrivalTime);
-    document.querySelector("#op_name").textContent = firstService.operator;
+    document.querySelector("#depart_from").textContent = firstService.origin[0].crs;
+    document.querySelector("#depart_to").textContent = firstService.destination[0].crs;
+    document.querySelector("#depart_platform_num").textContent = firstService.platform ?? "-";
+    document.querySelector("#depart_stop_num").textContent = callingPoints.length;
+    document.querySelector("#depart_cars_num").textContent = firstService.length || "-";
+    document.querySelector("#depart_jt_time").textContent = getJourneyDuration(departureTime, arrivalTime);
+    document.querySelector("#depart_op_name").textContent = firstService.operator;
 
     const departEl = document.querySelector("#depart_time");
     departEl.textContent = departureTime;
     departEl.classList.toggle("late", isDelayed);
 
-    const cancelReasonEl = document.querySelector("#cancel_reason");
+    const cancelReasonEl = document.querySelector("#depart_cancel_reason");
     cancelReasonEl.hidden = true;
     cancelReasonEl.textContent = "";
 
@@ -129,7 +129,7 @@ async function updateDisplay(crs) {
     }
 
     const upcoming = services.filter((s) => s !== firstService).slice(0, 3);
-    const nextSlots = ["#next_1", "#next_2", "#next_3"];
+    const nextSlots = ["#next_depart_1", "#next_depart_2", "#next_depart_3"];
     nextSlots.forEach((selector, i) => {
       const slot = document.querySelector(selector);
       const service = upcoming[i];
