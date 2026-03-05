@@ -289,6 +289,13 @@ header h1 {
     color: darkred;
     font-size: 0.55em;
     letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.status-timer {
+    font-size: 0.55em;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 @media (max-width: 480px) {

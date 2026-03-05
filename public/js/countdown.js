@@ -66,6 +66,7 @@ export default class Countdown {
       this.timer_elem.textContent = "Cancelled";
       this.timer_label.textContent = "This Service Has Been";
       this.timer_elem.classList.add("cancelled-timer");
+      this.timer_elem.classList.remove("status-timer");
       this.timer_elem.classList.remove("late");
       return;
     }
@@ -75,9 +76,12 @@ export default class Countdown {
     if (!this.end_time) {
       this.timer_elem.textContent = "No Services";
       this.timer_label.textContent = "";
+      this.timer_elem.classList.add("status-timer");
       this.timer_elem.classList.remove("late");
       return;
     }
+
+    this.timer_elem.classList.remove("status-timer");
 
     this.timer_elem.textContent = `${String(this.hours).padStart(2, "0")}:${String(this.minutes).padStart(2, "0")}:${String(this.seconds).padStart(2, "0")}`;
 
