@@ -13,7 +13,7 @@ let displayRefreshTimer = null;
 let cancellationLingerTimer = null;
 
 // Countdown
-const countdown = new Countdown();
+const countdown = new Countdown("depart");
 countdown.start();
 
 // Display

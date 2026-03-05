@@ -1,7 +1,9 @@
 import { COUNTDOWN_INTERVAL_MS } from "./constants.js";
 
 export default class Countdown {
-  constructor() {
+  constructor(type = "depart") {
+    this.type = type === "arrive" ? "arrive" : "depart";
+    this.action = this.type === "arrive" ? "Arriving" : "Departing";
     this.end_time = null;
     this.hours = 0;
     this.minutes = 0;
@@ -10,8 +12,8 @@ export default class Countdown {
     this.confirmed_late = false;
     this.cancelled = false;
     this.loaded = false;
-    this.timer_label = document.querySelector("#depart_cd_label");
-    this.timer_elem = document.querySelector("#depart_cd_timer");
+    this.timer_label = document.querySelector(`#${this.type}_cd_label`);
+    this.timer_elem = document.querySelector(`#${this.type}_cd_timer`);
   }
 
   set_time(time_string) {
@@ -58,7 +60,7 @@ export default class Countdown {
   }
 
   display_time() {
-    if (!this.loaded) return;
+    if (!this.loaded || !this.timer_label || !this.timer_elem) return;
 
     if (this.cancelled) {
       this.timer_elem.textContent = "Cancelled";
@@ -85,11 +87,11 @@ export default class Countdown {
         this.timer_elem.classList.add("late");
       } else {
         this.timer_elem.textContent = "00:00:00";
-        this.timer_label.textContent = "Departing Soon";
+        this.timer_label.textContent = `${this.action} Soon`;
         this.timer_elem.classList.remove("late");
       }
     } else {
-      this.timer_label.textContent = "Departing In";
+      this.timer_label.textContent = `${this.action} In`;
       this.timer_elem.classList.remove("late");
     }
   }
